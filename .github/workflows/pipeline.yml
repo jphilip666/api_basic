@@ -1,0 +1,54 @@
+name: CI + CD Pipeline
+
+on:
+    push:
+        branches: [main]
+
+permissions:
+    id-token: write
+    contents: read
+
+jobs:
+  ci:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 25
+
+      - run: npm ci
+      - run: npm test
+
+  cd:
+    name: Build & Push to ECR
+    runs-on: ubuntu-latest
+
+    needs: ci
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::700554183193:role/GithubActionsAwsAPI
+          aws-region: eu-west-2
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: docker build -t my-app .
+
+      - name: Tag image
+        run: |
+          docker tag my-app:latest \
+          700554183193.dkr.ecr.eu-west-2.amazonaws.com/jestin.philip/api-basic:latest
+
+      - name: Push to ECR
+        run: |
+          docker push 700554183193.dkr.ecr.eu-west-2.amazonaws.com/jestin.philip/api-basic:latest
